@@ -1,0 +1,6 @@
+.cache/
+build/
+out/
+compile_commands.json
+cpm-package-lock.cmake
+update_dependencies.sh
