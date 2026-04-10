@@ -49,13 +49,40 @@ class HeaderParser:
     def process_ref(self, cursor):
         return {"ref": self.get_child(cursor).hash}
 
+    def is_array(self, cursor):
+        return cursor.type.kind == clx.TypeKind.CONSTANTARRAY
+
+    def get_array_dimensions(self, type):
+        dims = []
+        while type.kind == clx.TypeKind.CONSTANTARRAY:
+            dims.append(type.element_count)
+            type = type.element_type
+        return dims, type
+
+    def process_array(self, cursor):
+        dims, element_type = self.get_array_dimensions(cursor.type)
+        result = {
+            "type": element_type.spelling,
+            "array": dims
+        }
+        decl = element_type.get_declaration()
+        if decl.location.file is not None and self.is_from_my_file(decl):
+            result["ref"] = decl.hash
+        return result
+
+    def is_pointer(self, cursor):
+        return cursor.type.kind == clx.TypeKind.POINTER
+
+    def process_pointer(self, cursor):
+        return {"pointer": "true", "type": cursor.type.get_pointee().spelling}
+
     def process_field(self, cursor):
         # TODO: Cases
         # fundamental arithmetic types, default assumption  V
         # is bool                                           V
-        # is another user defined type from user file
-        # is array
-        # is pointer
+        # is another user defined type from user file       V
+        # is array                                          V
+        # is pointer                                        V
         # is nested anonymous union/struct
         # is bitfield
         # is function pointer
@@ -66,9 +93,13 @@ class HeaderParser:
                 "type": cursor.type.spelling
         }
 
+        if self.is_pointer(cursor):
+            field |= self.process_pointer(cursor)
+
         if self.is_bool(cursor):
             field |= self.process_bool(cursor)
-
+        elif self.is_array(cursor):
+            field |= self.process_array(cursor)
         elif self.is_ref(cursor):
             field |= self.process_ref(cursor)
 
