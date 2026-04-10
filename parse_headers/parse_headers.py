@@ -1,5 +1,6 @@
 import clang.cindex as clx
 import json
+import sys
 
 
 class HeaderParser:
@@ -76,6 +77,21 @@ class HeaderParser:
     def process_pointer(self, cursor):
         return {"pointer": "true", "type": cursor.type.get_pointee().spelling}
 
+    def is_unsupported(self, cursor):
+        unsupported_kinds = [
+            clx.TypeKind.FUNCTIONPROTO,
+            clx.TypeKind.FUNCTIONNOPROTO,
+        ]
+        unsupported_cursor_kinds = [
+            clx.CursorKind.UNION_DECL,
+        ]
+        return (
+            cursor.type.kind in unsupported_kinds
+            or cursor.is_bitfield()
+            or cursor.type.get_declaration().kind in unsupported_cursor_kinds
+            or cursor.type.get_declaration().is_anonymous()
+        )
+
     def process_field(self, cursor):
         # TODO: Cases
         # fundamental arithmetic types, default assumption  V
@@ -83,9 +99,18 @@ class HeaderParser:
         # is another user defined type from user file       V
         # is array                                          V
         # is pointer                                        V
-        # is nested anonymous union/struct
-        # is bitfield
-        # is function pointer
+        # is nested anonymous union/struct - make this func recursive
+        # is bitfield - real pain to handle
+        # is function pointer - just ignore
+
+        if self.is_unsupported(cursor):
+            loc = cursor.extent.start
+            print(
+                f"Unsupported field '{cursor.displayname}' "
+                f"of type '{cursor.type.spelling}' "
+                f"at {loc.file.name}:{loc.line}:{loc.column}"
+            )
+            sys.exit(1)
 
         field = {
                 "name": cursor.displayname,
