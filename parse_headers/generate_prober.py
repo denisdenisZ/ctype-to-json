@@ -64,14 +64,14 @@ def fill_template(data: dict, header_file: str):
     sizes = []
     for key, value in data.items():
         if value["kind"] == "struct":
-            sizes.append(print_size_template.format(struct_name=value["name"]))
+            sizes.append(print_size_template.format(struct_name=key))
             for field in value["fields"]:
                 offsets.append(
                     print_offset_template.format(
-                        struct_name=value["name"], field_name=field["name"]
+                        struct_name=key, field_name=field["name"]
                     ))
                 sizes.append(print_field_size_template.format(
-                    struct_name=value["name"], field_name=field["name"]
+                    struct_name=key, field_name=field["name"]
                 ))
 
     result = template.format(

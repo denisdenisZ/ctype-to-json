@@ -7,13 +7,13 @@ def insert_platform_data(stdout: str, json_data: str) -> dict:
         key, value = line.rsplit(" ", 1)
         info[key] = int(value)
 
-    for entry in json_data.values():
+    for type_name, entry in json_data.items():
         if entry["kind"] == "struct":
-            entry["size"] = info.get(entry["name"])
+            entry["size"] = info.get(type_name)
             for field in entry["fields"]:
-                field["offset"] = info.get(f'{entry["name"]}.{field["name"]}')
+                field["offset"] = info.get(f'{type_name}.{field["name"]}')
                 field["size"] = info.get(
-                    f'{entry["name"]}.{field["name"]}.size'
+                    f'{type_name}.{field["name"]}.size'
                 )
 
     return json_data

@@ -25,10 +25,10 @@ class HeaderParser:
         return next(cursor.get_children(), None)
 
     def was_seen(self, cursor):
-        return cursor.hash in self.seen
+        return cursor.spelling in self.seen
 
     def mark_seen(self, cursor):
-        self.seen.append(cursor.hash)
+        self.seen.append(cursor.spelling)
 
     def is_bool(self, cursor):
         with open(cursor.extent.start.file.name) as f:
@@ -48,7 +48,7 @@ class HeaderParser:
         return False
 
     def process_ref(self, cursor):
-        return {"ref": self.get_child(cursor).hash}
+        return {"ref": self.get_child(cursor).spelling}
 
     def is_array(self, cursor):
         return cursor.type.kind == clx.TypeKind.CONSTANTARRAY
@@ -68,7 +68,7 @@ class HeaderParser:
         }
         decl = element_type.get_declaration()
         if decl.location.file is not None and self.is_from_my_file(decl):
-            result["ref"] = decl.hash
+            result["ref"] = decl.spelling
         return result
 
     def is_pointer(self, cursor):
@@ -133,25 +133,25 @@ class HeaderParser:
     def process_struct(self, cursor, name):
         fields = []
 
-        self.data[cursor.hash] = {
-            "name": name,
+        self.data[cursor.type.spelling] = {
+            "name": cursor.spelling,
             "kind": "struct",
         }
 
         for child in cursor.get_children():
             fields.append(self.process_field(child))
 
-        self.data[cursor.hash]["fields"] = fields
+        self.data[cursor.type.spelling]["fields"] = fields
 
     def process_enum(self, cursor, name):
-        self.data[cursor.hash] = {
+        self.data[cursor.type.spelling] = {
             "name": name,
             "kind": "enum",
             "fields": [],
         }
 
         for child in cursor.get_children():
-            self.data[cursor.hash]["fields"].append({
+            self.data[cursor.type.spelling]["fields"].append({
                 "name": child.displayname,
                 "type": child.type.spelling,
                 "value": child.enum_value
@@ -175,7 +175,11 @@ class HeaderParser:
             if self.is_typedef(cursor):
                 name = cursor.displayname
                 child = self.resolve_typedef(cursor)
-                self.data[child.hash]["name"] = name
+
+                old_key = child.spelling
+                if old_key in self.data:
+                    self.data[name] = self.data.pop(old_key)
+                    self.data[name]["name"] = name
 
             if not self.was_seen(cursor):
                 self.process_node(cursor, cursor.type.spelling)
