@@ -18,6 +18,7 @@ def pares_args():
     parser.add_argument(
         "header",
         metavar="header_file.h",
+        nargs="+",
         help="The header to parse"
     )
     parser.add_argument(
@@ -95,7 +96,7 @@ def load_config(path: str) -> dict:
 
 class Pipeline:
     def __init__(self, ctx: dict):
-        self.header = ctx["header"]
+        self.headers = ctx["header"]
         self.config = ctx["config"] or {}
         self.out = ctx["out"]
         self.emit_prober = ctx["emit_prober"]
@@ -107,7 +108,9 @@ class Pipeline:
         self.compiler = toolchain.get("cc", "gcc")
         self.flags = toolchain.get("flags", [])
         self.include_dirs = toolchain.get("include_dirs", [])
-        self.include_dirs.append(str(Path(self.header).resolve().parent))
+
+        dirs = set(str(Path(h).resolve().parent) for h in self.headers)
+        self.include_dirs.extend(dirs)
 
     def _setup(self):
         verify_config(self.config)
@@ -116,8 +119,8 @@ class Pipeline:
         self.tmp_dir.mkdir(parents=True, exist_ok=True)
 
         parser = HeaderParser()
-        self.data = parser.parse_header(
-            self.header,
+        self.data = parser.parse_headers(
+            self.headers,
             ["-x", "c", resolve_std(self.config["parser"]["c_standard"])]
         )
 
@@ -148,14 +151,14 @@ class Pipeline:
         out = self.out if self.out is not None else "."
         generate_prober(
             self.data,
-            self.header,
+            self.headers,
             self.include_dirs,
             out
         )
         print(
             f"Prober written to '{out}'.\n"
             f"Run it on the target machine and pass the output back with:\n"
-            f"produce_json.py --config <config_file> {self.header}"
+            f"produce_json.py --config <config_file> {self.headers}"
             " --sizes <output_file>"
         )
         sys.exit(0)
@@ -172,7 +175,7 @@ class Pipeline:
     def _handle_normal(self):
         result = generate_and_probe(
             self.data,
-            self.header,
+            self.headers,
             self.include_dirs,
             self.tmp_dir,
             self.compiler,

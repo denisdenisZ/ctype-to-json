@@ -6,7 +6,7 @@ from pathlib import Path
 template = """
 #include <stddef.h>
 #include <stdio.h>
-#include "{header}"
+{headers}
 
 int main(void) {{
 {prints}
@@ -59,9 +59,12 @@ def compile(
     return bin
 
 
-def fill_template(data: dict, header_file: str):
+def fill_template(data: dict, header_files: list[str]):
     offsets = []
     sizes = []
+    includes = "\n".join(
+        f'#include "{Path(h).resolve()}"' for h in header_files
+    )
     for key, value in data.items():
         if value["kind"] == "struct":
             sizes.append(print_size_template.format(struct_name=key))
@@ -74,14 +77,13 @@ def fill_template(data: dict, header_file: str):
                     struct_name=key, field_name=field["name"]
                 ))
 
-    result = template.format(
-        prints="".join(offsets + sizes), header=header_file)
+    result = template.format(prints="".join(offsets + sizes), headers=includes)
     return result
 
 
 def generate_prober(
         data: dict,
-        header_file: str,
+        header_files: list[str],
         include_dirs: list[str],
         out_dir: str,
         compiler: str = "gcc",
@@ -92,7 +94,7 @@ def generate_prober(
 
     prober_c = out_dir / "size_prober.c"
 
-    result = fill_template(data, header_file)
+    result = fill_template(data, header_files)
 
     with open(prober_c, "w", encoding="utf-8") as f:
         f.write(result)
@@ -102,7 +104,7 @@ def generate_prober(
 
 
 def generate_prober_from_file(
-        header_file: str,
+        header_files: list[str],
         json_file: str,
         include_dirs: list[str],
         out_dir: str,
@@ -112,12 +114,12 @@ def generate_prober_from_file(
     with open(json_file) as f:
         data = json.load(f)
 
-    generate_prober(data, header_file, include_dirs, out_dir, compiler, flags)
+    generate_prober(data, header_files, include_dirs, out_dir, compiler, flags)
 
 
 def generate_and_probe(
         data: dict,
-        header_file: str,
+        header_files: list[str],
         include_dirs: list[str],
         out_dir: str,
         compiler: str = "gcc",
@@ -125,7 +127,7 @@ def generate_and_probe(
     return probe(
         generate_prober(
             data,
-            header_file,
+            header_files,
             include_dirs,
             out_dir,
             compiler,

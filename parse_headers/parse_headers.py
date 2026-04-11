@@ -48,7 +48,8 @@ class HeaderParser:
         return False
 
     def process_ref(self, cursor):
-        return {"ref": self.get_child(cursor).spelling}
+        decl = self.get_child(cursor).type.get_declaration()
+        return {"ref": decl.type.spelling}
 
     def is_array(self, cursor):
         return cursor.type.kind == clx.TypeKind.CONSTANTARRAY
@@ -68,7 +69,7 @@ class HeaderParser:
         }
         decl = element_type.get_declaration()
         if decl.location.file is not None and self.is_from_my_file(decl):
-            result["ref"] = decl.spelling
+            result["ref"] = decl.type.spelling
         return result
 
     def is_pointer(self, cursor):
@@ -176,7 +177,7 @@ class HeaderParser:
                 name = cursor.displayname
                 child = self.resolve_typedef(cursor)
 
-                old_key = child.spelling
+                old_key = child.type.spelling
                 if old_key in self.data:
                     self.data[name] = self.data.pop(old_key)
                     self.data[name]["name"] = name
@@ -190,10 +191,12 @@ class HeaderParser:
 
     def process_includes(self, cursor):
         includes = cursor.translation_unit.get_includes()
-        self.data["meta"] = {
-            "kind": "metadata",
-            "headers": [inc.include.name for inc in includes]
-        }
+        if "meta" not in self.data:
+            self.data["meta"] = {"kind": "metadata", "headers": []}
+        new_headers = [inc.include.name for inc in includes]
+        existing = set(self.data["meta"]["headers"])
+        new = [h for h in new_headers if h not in existing]
+        self.data["meta"]["headers"] += new
 
     def parse_header(self, header: str, args: list[str]) -> dict:
 
@@ -209,5 +212,7 @@ class HeaderParser:
         with open(out, "w") as f:
             json.dump(self.data, f, indent=2)
 
-    def parse_headers(self, headers_dir: str):
-        pass
+    def parse_headers(self, headers: list[str], args: list[str]) -> dict:
+        for header in headers:
+            self.parse_header(header, args)
+        return self.data
