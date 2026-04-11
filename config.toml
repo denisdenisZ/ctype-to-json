@@ -1,0 +1,11 @@
+[toolchain]
+cc = "gcc"
+
+# These flags will be pased when compiling the size prober
+flags = []
+
+# System includes go here
+include_dirs = []
+
+[parser]
+c_standard = "11"
