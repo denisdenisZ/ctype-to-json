@@ -1,5 +1,6 @@
 from parse_headers import HeaderParser
 from generate_prober import generate_and_probe
+from generate_prober import generate_prober
 from insert_platform_data import insert_platform_data
 
 from pathlib import Path
@@ -8,22 +9,6 @@ import argparse
 import tomllib
 import json
 import sys
-
-
-def main(header):
-    include_dir = Path(header).resolve().parent
-    tmp_dir = Path("./.tmp")
-
-    shutil.rmtree(tmp_dir, ignore_errors=True)
-    tmp_dir.mkdir(parents=True, exist_ok=True)
-
-    parser = HeaderParser()
-    data = parser.parse_header(header, ["-x", "c", "-std=c11"])
-    result = generate_and_probe(data, header, include_dir, tmp_dir)
-
-    output = insert_platform_data(result.stdout, data)
-    print(json.dumps(output, indent=2))
-    shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 def pares_args():
@@ -71,16 +56,6 @@ def pares_args():
     return parser.parse_args()
 
 
-def write_json(data: dict, path: str):
-    with open(path, "w") as f:
-        json.dump(data, f, indent=2)
-
-
-def load_config(path: str) -> dict:
-    with open(path, "rb") as f:
-        return tomllib.load(f)
-
-
 def is_std_allowed(cstd: str):
     allowed = ["11", "99", "17"]
     return cstd in allowed
@@ -101,47 +76,116 @@ def verify_config(config: dict):
 
     cstd = parser.get("c_standard")
     if cstd is not None and not is_std_allowed(cstd):
-        print(f"Config error: parser.c_standard '{cstd}' is not supported, allowed values are: 11, 99, 17")
+        print(
+            f"Config error: parser.c_standard '{cstd}' is not supported, "
+            f"allowed values are: 11, 99, 17"
+        )
         sys.exit(1)
 
 
-def cleanup(debug: bool, tmp_dir: Path):
-    if not debug:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
+def write_json(data: dict, path: str):
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
 
 
-def handle_no_probe(data: dict, out):
-    if out is None:
-        json.dumps(data, indent=2)
-    else:
-        write_json(data, out)
+def load_config(path: str) -> dict:
+    with open(path, "rb") as f:
+        return tomllib.load(f)
 
 
-def main2(ctx):
-    user_header = ctx["header"]
-    config = ctx["config"]
-    verify_config(config)
+class Pipeline:
+    def __init__(self, ctx: dict):
+        self.header = ctx["header"]
+        self.config = ctx["config"] or {}
+        self.out = ctx["out"]
+        self.emit_prober = ctx["emit_prober"]
+        self.no_probe = ctx["no_probe"]
+        self.sizes = ctx["sizes"]
+        self.debug = ctx["debug"]
+        self.tmp_dir = Path("./.tmp")
+        toolchain = self.config.get("toolchain", {})
+        self.compiler = toolchain.get("cc", "gcc")
+        self.flags = toolchain.get("flags", [])
+        self.include_dirs = toolchain.get("include_dirs", [])
+        self.include_dirs.append(str(Path(self.header).resolve().parent))
 
-    tmp_dir = Path("./.tmp")
-    shutil.rmtree(tmp_dir, ignore_errors=True)
-    tmp_dir.mkdir(parents=True, exist_ok=True)
+    def _setup(self):
+        verify_config(self.config)
 
-    parser = HeaderParser()
-    data = parser.parse_header(
-        user_header, "-x", "c", resolve_std(config["c_standard"])
-    )
+        shutil.rmtree(self.tmp_dir, ignore_errors=True)
+        self.tmp_dir.mkdir(parents=True, exist_ok=True)
 
-    if ctx["no_probe"]:
-        handle_no_probe(data, config["output"])
-    if ctx["sizes"]:
-        pass
-    if ctx["emit_prober"]:
-        pass
+        parser = HeaderParser()
+        self.data = parser.parse_header(
+            self.header,
+            ["-x", "c", resolve_std(self.config["parser"]["c_standard"])]
+        )
 
-    cleanup(ctx["debug"], tmp_dir)
+    def _cleanup(self):
+        if not self.debug:
+            shutil.rmtree(self.tmp_dir, ignore_errors=True)
+
+    def run(self):
+        self._setup()
+        if self.no_probe:
+            self._handle_no_probe()
+        elif self.sizes:
+            self._handle_sizes()
+            pass
+        elif self.emit_prober:
+            self._handle_emit_prober()
+        else:
+            self._handle_normal()
+        self._cleanup()
+
+    def _handle_no_probe(self):
+        if self.out is None:
+            print(json.dumps(self.data, indent=2))
+        else:
+            write_json(self.data, self.out)
+
+    def _handle_emit_prober(self):
+        out = self.out if self.out is not None else "."
+        generate_prober(
+            self.data,
+            self.header,
+            self.include_dirs,
+            out
+        )
+        print(
+            f"Prober written to '{out}'.\n"
+            f"Run it on the target machine and pass the output back with:\n"
+            f"produce_json.py --config <config_file> {self.header}"
+            " --sizes <output_file>"
+        )
+        sys.exit(0)
+
+    def _handle_sizes(self):
+        with open(self.sizes) as f:
+            stdout = f.read()
+        output = insert_platform_data(stdout, self.data)
+        if self.out is None:
+            print(json.dumps(output, indent=2))
+        else:
+            write_json(output, self.out)
+
+    def _handle_normal(self):
+        result = generate_and_probe(
+            self.data,
+            self.header,
+            self.include_dirs,
+            self.tmp_dir,
+            self.compiler,
+            self.flags
+        )
+        output = insert_platform_data(result.stdout, self.data)
+        if self.out is None:
+            print(json.dumps(output, indent=2))
+        else:
+            write_json(output, self.out)
 
 
-def setup():
+def init():
     args = pares_args()
     config = load_config(args.config) if args.config is not None else None
     ctx = {
@@ -160,8 +204,8 @@ def setup():
         print(f"Emit prober: {args.emit_prober}")
         print(f"No probe: {args.no_probe}")
         print(f"Sizes: {args.sizes}")
-    main2(ctx)
+    Pipeline(ctx).run()
 
 
 if __name__ == "__main__":
-    setup()
+    init()

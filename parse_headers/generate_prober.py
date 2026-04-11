@@ -82,41 +82,53 @@ def fill_template(data: dict, header_file: str):
 def generate_prober(
         data: dict,
         header_file: str,
-        include_dir: str,
-        out_dir: str):
+        include_dirs: list[str],
+        out_dir: str,
+        compiler: str = "gcc",
+        flags: list[str] = []):
 
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+
     prober_c = out_dir / "size_prober.c"
-    prober_bin = out_dir / "size_prober"
 
     result = fill_template(data, header_file)
 
     with open(prober_c, "w", encoding="utf-8") as f:
         f.write(result)
-
-    result = compile(
-        str(prober_c), str(out_dir), "gcc", [], [str(include_dir)]
+    return compile(
+        str(prober_c), str(out_dir), compiler, flags, include_dirs
     )
-
-    return prober_bin
 
 
 def generate_prober_from_file(
         header_file: str,
         json_file: str,
-        include_dir: str,
-        out_dir: str):
+        include_dirs: list[str],
+        out_dir: str,
+        compiler: str = "gcc",
+        flags: list[str] = []):
 
     with open(json_file) as f:
         data = json.load(f)
 
-    generate_prober(data, header_file, include_dir, out_dir)
+    generate_prober(data, header_file, include_dirs, out_dir, compiler, flags)
 
 
 def generate_and_probe(
         data: dict,
         header_file: str,
-        include_dir: str,
-        out_dir: str):
-    return probe(generate_prober(data, header_file, include_dir, out_dir))
+        include_dirs: list[str],
+        out_dir: str,
+        compiler: str = "gcc",
+        flags: list[str] = []):
+    return probe(
+        generate_prober(
+            data,
+            header_file,
+            include_dirs,
+            out_dir,
+            compiler,
+            flags
+        )
+    )
