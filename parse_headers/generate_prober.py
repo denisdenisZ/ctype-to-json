@@ -34,15 +34,34 @@ def probe(bin: str):
     return data
 
 
-def generate_prober(
-        data: dict,
-        header_file: str,
-        include_dir: str,
-        out_dir: str):
+def compile(
+        src: str,
+        out_dir: str,
+        compiler: str = "gcc",
+        flags: list[str] = [],
+        include_dirs: list[str] = []):
+    src = Path(src)
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    bin = out_dir / src.stem
+    cmd = [
+        compiler,
+        *[f"-I{d}" for d in include_dirs],
+        *flags,
+        str(src),
+        "-o", str(bin)
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print("Compilation failed:")
+        print(result.stderr)
+        sys.exit(1)
+    return bin
 
+
+def fill_template(data: dict, header_file: str):
     offsets = []
     sizes = []
-
     for key, value in data.items():
         if value["kind"] == "struct":
             sizes.append(print_size_template.format(struct_name=value["name"]))
@@ -57,26 +76,28 @@ def generate_prober(
 
     result = template.format(
         prints="".join(offsets + sizes), header=header_file)
+    return result
+
+
+def generate_prober(
+        data: dict,
+        header_file: str,
+        include_dir: str,
+        out_dir: str):
 
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     prober_c = out_dir / "size_prober.c"
     prober_bin = out_dir / "size_prober"
 
+    result = fill_template(data, header_file)
+
     with open(prober_c, "w", encoding="utf-8") as f:
         f.write(result)
 
-    result = subprocess.run([
-        "gcc",
-        "-I", include_dir,
-        str(prober_c),
-        "-o", str(prober_bin)
-    ], capture_output=True, text=True)
-
-    if result.returncode != 0:
-        print("Compilation failed:")
-        print(result.stderr)
-        sys.exit(1)
+    result = compile(
+        str(prober_c), str(out_dir), "gcc", [], [str(include_dir)]
+    )
 
     return prober_bin
 

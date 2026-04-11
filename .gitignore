@@ -4,3 +4,5 @@ out/
 compile_commands.json
 cpm-package-lock.cmake
 update_dependencies.sh
+__pycache__
+venv/
