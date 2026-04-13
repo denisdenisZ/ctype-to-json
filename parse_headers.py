@@ -113,11 +113,12 @@ class HeaderParser:
         unsupported_cursor_kinds = [
             clx.CursorKind.UNION_DECL,
         ]
+        canonical = cursor.type.get_canonical()
         return (
             cursor.type.kind in unsupported_kinds
             or cursor.is_bitfield()
-            or cursor.type.get_declaration().kind in unsupported_cursor_kinds
-            or cursor.type.get_declaration().is_anonymous()
+            or canonical.get_declaration().kind in unsupported_cursor_kinds
+            or canonical.get_declaration().is_anonymous()
         )
 
     def process_field(self, cursor):
