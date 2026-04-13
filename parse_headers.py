@@ -4,9 +4,36 @@ import sys
 
 
 class HeaderParser:
-    def __init__(self):
+    def __init__(self, skip_unsupported=False):
         self.data = {}
         self.seen = []
+        self.skip_unsupported = skip_unsupported
+        self.tainted = set()
+
+# REMOVE THIS WHEN SUPPORT FOR ALL TYPES IS ADDED
+    def mark_tainted(self, cursor):
+        spelling = cursor.semantic_parent.type.spelling
+        self.tainted.add(spelling)
+        self.tainted.add(spelling.removeprefix("struct "))
+
+    def propagate_taint(self):
+        changed = True
+        while changed:
+            changed = False
+            for name, entry in self.data.items():
+                if name in self.tainted:
+                    continue
+                if any(f.get("ref") in self.tainted for f in entry.get(
+                    "fields",
+                    []
+                )):
+                    self.tainted.add(name)
+                    changed = True
+
+    def remove_tainted(self):
+        for name in self.tainted:
+            self.data.pop(name, None)
+###################################################
 
     def parse(self, header: str, args: list[str]):
         index = clx.Index.create()
@@ -109,8 +136,12 @@ class HeaderParser:
             print(
                 f"Unsupported field '{cursor.displayname}' "
                 f"of type '{cursor.type.spelling}' "
-                f"at {loc.file.name}:{loc.line}:{loc.column}"
+                f"at {loc.file.name}:{loc.line}:{loc.column} "
+                f"of kind {cursor.type.kind}"
             )
+            if self.skip_unsupported:
+                self.mark_tainted(cursor)
+                return None
             sys.exit(1)
 
         field = {
@@ -140,7 +171,9 @@ class HeaderParser:
         }
 
         for child in cursor.get_children():
-            fields.append(self.process_field(child))
+            result = self.process_field(child)
+            if result is not None:
+                fields.append(result)
 
         self.data[cursor.type.spelling]["fields"] = fields
 
@@ -215,4 +248,6 @@ class HeaderParser:
     def parse_headers(self, headers: list[str], args: list[str]) -> dict:
         for header in headers:
             self.parse_header(header, args)
+        self.propagate_taint()
+        self.remove_tainted()
         return self.data

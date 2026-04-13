@@ -19,7 +19,7 @@ print_size_template = (
 )
 
 print_offset_template = (
-    'printf("{struct_name}.{field_name} %d\\n",'
+    'printf("{struct_name}.{field_name} %lu\\n",'
     ' offsetof({struct_name}, {field_name}));\n'
 )
 

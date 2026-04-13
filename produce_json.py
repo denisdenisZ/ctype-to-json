@@ -34,6 +34,11 @@ def pares_args():
         help="Output file (default: stdout)"
     )
     parser.add_argument(
+        "--skip-unsupported",
+        action="store_true",
+        help="Skip structs with unsuported fields"
+    )
+    parser.add_argument(
         "--DEBUG",
         action="store_true",
         help="Enables debug output"
@@ -99,6 +104,7 @@ class Pipeline:
         self.headers = ctx["header"]
         self.config = ctx["config"] or {}
         self.out = ctx["out"]
+        self.skip_unsupported = ctx["skip_unsupported"]
         self.emit_prober = ctx["emit_prober"]
         self.no_probe = ctx["no_probe"]
         self.sizes = ctx["sizes"]
@@ -118,7 +124,7 @@ class Pipeline:
         shutil.rmtree(self.tmp_dir, ignore_errors=True)
         self.tmp_dir.mkdir(parents=True, exist_ok=True)
 
-        parser = HeaderParser()
+        parser = HeaderParser(self.skip_unsupported)
         self.data = parser.parse_headers(
             self.headers,
             ["-x", "c", resolve_std(self.config["parser"]["c_standard"])]
@@ -195,6 +201,7 @@ def init():
         "header": args.header,
         "config": config,
         "out": args.output,
+        "skip_unsupported": args.skip_unsupported,
         "emit_prober": args.emit_prober,
         "no_probe": args.no_probe,
         "sizes": args.sizes,
@@ -204,6 +211,7 @@ def init():
         print(f"Header: {args.header}")
         print(f"Config: {config}")
         print(f"Output: {args.output}")
+        print("fskip_unsupported: {args.skip_unsupported}")
         print(f"Emit prober: {args.emit_prober}")
         print(f"No probe: {args.no_probe}")
         print(f"Sizes: {args.sizes}")
