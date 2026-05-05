@@ -109,7 +109,7 @@ class Pipeline:
         self.no_probe = ctx["no_probe"]
         self.sizes = ctx["sizes"]
         self.debug = ctx["debug"]
-        self.tmp_dir = Path("./.tmp")
+        self.tmp_dir = Path("/tmp/ctype-to-json")
         toolchain = self.config.get("toolchain", {})
         self.compiler = toolchain.get("cc", "gcc")
         self.flags = toolchain.get("flags", [])
