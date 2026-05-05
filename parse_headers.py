@@ -114,11 +114,15 @@ class HeaderParser:
             clx.CursorKind.UNION_DECL,
         ]
         canonical = cursor.type.get_canonical()
+
+        decl = canonical.get_declaration()
+        truly_anonymous = decl.is_anonymous() and not cursor.type.spelling
+
         return (
             cursor.type.kind in unsupported_kinds
             or cursor.is_bitfield()
             or canonical.get_declaration().kind in unsupported_cursor_kinds
-            or canonical.get_declaration().is_anonymous()
+            or truly_anonymous
         )
 
     def process_field(self, cursor):
