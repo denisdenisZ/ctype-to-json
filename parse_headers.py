@@ -105,7 +105,7 @@ class HeaderParser:
     def process_pointer(self, cursor):
         return {"pointer": "true", "type": cursor.type.get_pointee().spelling}
 
-    def is_unsupported(self, cursor):
+    def get_unsupported_reason(self, cursor):
         unsupported_kinds = [
             clx.TypeKind.FUNCTIONPROTO,
             clx.TypeKind.FUNCTIONNOPROTO,
@@ -114,16 +114,21 @@ class HeaderParser:
             clx.CursorKind.UNION_DECL,
         ]
         canonical = cursor.type.get_canonical()
-
         decl = canonical.get_declaration()
         truly_anonymous = decl.is_anonymous() and not cursor.type.spelling
 
-        return (
-            cursor.type.kind in unsupported_kinds
-            or cursor.is_bitfield()
-            or canonical.get_declaration().kind in unsupported_cursor_kinds
-            or truly_anonymous
-        )
+        if cursor.type.kind in unsupported_kinds:
+            return f"function type ({cursor.type.kind})"
+        if cursor.is_bitfield():
+            return f"bitfield of width {cursor.get_bitfield_width()}"
+        if decl.kind in unsupported_cursor_kinds:
+            return f"union ({decl.kind})"
+        if truly_anonymous:
+            return f"anonymous type ({canonical.kind})"
+        return None
+
+    def is_unsupported(self, cursor):
+        return self.get_unsupported_reason(cursor) is not None
 
     def process_field(self, cursor):
         # TODO: Cases
@@ -137,12 +142,13 @@ class HeaderParser:
         # is function pointer - just ignore
 
         if self.is_unsupported(cursor):
+            reason = self.get_unsupported_reason(cursor)
             loc = cursor.extent.start
             print(
                 f"Unsupported field '{cursor.displayname}' "
                 f"of type '{cursor.type.spelling}' "
                 f"at {loc.file.name}:{loc.line}:{loc.column} "
-                f"of kind {cursor.type.kind}"
+                f"reason: {reason}"
             )
             if self.skip_unsupported:
                 self.mark_tainted(cursor)
