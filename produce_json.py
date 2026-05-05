@@ -1,7 +1,6 @@
 from parse_headers import HeaderParser
-from generate_prober import generate_and_probe
-from generate_prober import generate_prober
 from insert_platform_data import insert_platform_data
+from generate_prober import generate_and_probe, generate_prober, emit_prober_source
 
 from pathlib import Path
 import shutil
@@ -154,18 +153,18 @@ class Pipeline:
             write_json(self.data, self.out)
 
     def _handle_emit_prober(self):
-        out = self.out if self.out is not None else "."
-        generate_prober(
-            self.data,
-            self.headers,
-            self.include_dirs,
-            out
-        )
+        if self.out is not None:
+            out_path = Path(self.out)
+            prober_name = out_path.stem + "_prober.c"
+            out_dir = out_path.parent
+        else:
+            prober_name = "prober.c"
+            out_dir = Path(".")
+        prober_c = emit_prober_source(self.data, self.headers, out_dir, prober_name)
+        print()
         print(
-            f"Prober written to '{out}'.\n"
-            f"Run it on the target machine and pass the output back with:\n"
-            f"produce_json.py --config <config_file> {self.headers}"
-            " --sizes <output_file>"
+            f"Prober written to '{prober_c}'.\n"
+            f"Compile and run it on the target system, then pass the output back via the sizes flag\n"
         )
         sys.exit(0)
 

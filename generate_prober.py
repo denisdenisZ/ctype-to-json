@@ -33,6 +33,18 @@ def probe(bin: str):
     data = subprocess.run(bin, capture_output=True, text=True)
     return data
 
+def emit_prober_source(
+        data: dict,
+        header_files: list[str],
+        out_dir: str,
+        name: str = "size_prober.c"):
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    prober_c = out_dir / name
+    source = fill_template(data, header_files)
+    with open(prober_c, "w", encoding="utf-8") as f:
+        f.write(source)
+    return prober_c
 
 def compile(
         src: str,
