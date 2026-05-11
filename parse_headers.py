@@ -221,10 +221,13 @@ class HeaderParser:
                 name = cursor.displayname
                 child = self.resolve_typedef(cursor)
 
-                old_key = child.type.spelling
-                if old_key in self.data:
-                    self.data[name] = self.data.pop(old_key)
-                    self.data[name]["name"] = name
+                if child is None:
+                    pass
+                else:
+                    old_key = child.type.spelling
+                    if old_key in self.data:
+                        self.data[name] = self.data.pop(old_key)
+                        self.data[name]["name"] = name
 
             if not self.was_seen(cursor):
                 self.process_node(cursor, cursor.type.spelling)
