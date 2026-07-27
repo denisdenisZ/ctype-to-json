@@ -33,6 +33,7 @@ def probe(bin: str):
     data = subprocess.run(bin, capture_output=True, text=True)
     return data
 
+
 def emit_prober_source(
         data: dict,
         header_files: list[str],
@@ -46,7 +47,8 @@ def emit_prober_source(
         f.write(source)
     return prober_c
 
-def compile(
+
+def compile_prober(
         src: str,
         out_dir: str,
         compiler: str = "gcc",
@@ -110,7 +112,7 @@ def generate_prober(
 
     with open(prober_c, "w", encoding="utf-8") as f:
         f.write(result)
-    return compile(
+    return compile_prober(
         str(prober_c), str(out_dir), compiler, flags, include_dirs
     )
 

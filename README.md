@@ -6,22 +6,32 @@ This tool parses C header files and produces a JSON description of all structs a
 
 ---
 
+## Installation
+
+```
+pip install -e .
+```
+
+This installs the `ctype-to-json` command along with its dependencies.
+
+---
+
 ## Basic usage
 
 ```
-python produce_json.py [options] header_file.h [header_file2.h ...]
+ctype-to-json [options] header_file.h [header_file2.h ...]
 ```
 
 The simplest invocation with a config file:
 
 ```
-python produce_json.py -c config.toml my_types.h
+ctype-to-json -c config.toml my_types.h
 ```
 
 Multiple headers can be passed at once:
 
 ```
-python produce_json.py -c config.toml types_a.h types_b.h
+ctype-to-json -c config.toml types_a.h types_b.h
 ```
 
 All types from all headers are merged into a single JSON output. Overlapping includes (e.g. two headers that both include `stdint.h`) are handled automatically — shared types are only processed once.
@@ -72,7 +82,7 @@ If you are targeting a different architecture than the machine you are running o
 **Step 1** — Generate the prober binary on your host machine:
 
 ```
-python produce_json.py -c config.toml --emit-prober my_types.h
+ctype-to-json -c config.toml --emit-prober my_types.h
 ```
 
 This writes `size_prober` to the current directory (or to `--output` if specified).
@@ -86,7 +96,7 @@ This writes `size_prober` to the current directory (or to `--output` if specifie
 **Step 3** — Back on the host, feed the output back in:
 
 ```
-python produce_json.py -c config.toml --sizes sizes.txt my_types.h
+ctype-to-json -c config.toml --sizes sizes.txt my_types.h
 ```
 
 ---
@@ -195,7 +205,24 @@ The tool will exit with an error message if it encounters any of the following a
 
 - Bitfields (`uint8_t x : 4`)
 - Union fields
-- Anonymous nested structs/unions
-- Function pointers
 
 These are planned for future support. Non-struct top-level declarations (function prototypes, macros, etc.) are silently ignored.
+
+> **Known gap:** anonymous nested structs/unions and function-pointer fields are meant to be
+> rejected the same way, but the detection in `is_unsupported` currently misses both (function
+> pointers look like plain pointers; anonymous nested structs get emitted as an extra synthetic
+> top-level entry instead of being flagged). Tracked as follow-up work, not yet fixed.
+
+---
+
+## Development
+
+Install with the `dev` extra and run the test suite with pytest:
+
+```
+pip install -e ".[dev]"
+pytest
+```
+
+Tests that compile and run the size prober are skipped automatically if `gcc` isn't available.
+Test fixtures (sample headers and configs) live under `tests/fixtures/`.

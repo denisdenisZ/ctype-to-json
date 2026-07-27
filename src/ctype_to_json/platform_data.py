@@ -1,7 +1,7 @@
 import json
 
 
-def insert_platform_data(stdout: str, json_data: str) -> dict:
+def insert_platform_data(stdout: str, json_data: dict) -> dict:
     info = {}
     for line in stdout.splitlines():
         key, value = line.rsplit(" ", 1)
@@ -19,10 +19,8 @@ def insert_platform_data(stdout: str, json_data: str) -> dict:
     return json_data
 
 
-def insert_platform_data_from_file(stdout: str, json_data: str) -> dict:
-    with open(json_data) as f:
+def insert_platform_data_from_file(stdout: str, json_path: str) -> dict:
+    with open(json_path) as f:
         data = json.load(f)
 
-    data = insert_platform_data(stdout, data)
-
-    return data
+    return insert_platform_data(stdout, data)

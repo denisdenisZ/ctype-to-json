@@ -1,6 +1,6 @@
-from parse_headers import HeaderParser
-from insert_platform_data import insert_platform_data
-from generate_prober import generate_and_probe, generate_prober, emit_prober_source
+from .parser import HeaderParser
+from .platform_data import insert_platform_data
+from .prober import generate_and_probe, generate_prober, emit_prober_source
 
 from pathlib import Path
 import shutil
@@ -10,7 +10,7 @@ import json
 import sys
 
 
-def pares_args():
+def parse_args(argv=None):
     parser = argparse.ArgumentParser(
         description="Serializer of C data types to json"
     )
@@ -58,7 +58,7 @@ def pares_args():
         action="store_true",
         help="Skips size and offset probing, does not generate prober"
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def is_std_allowed(cstd: str):
@@ -139,7 +139,6 @@ class Pipeline:
             self._handle_no_probe()
         elif self.sizes:
             self._handle_sizes()
-            pass
         elif self.emit_prober:
             self._handle_emit_prober()
         else:
@@ -194,7 +193,7 @@ class Pipeline:
 
 
 def init():
-    args = pares_args()
+    args = parse_args()
     config = load_config(args.config) if args.config is not None else None
     ctx = {
         "header": args.header,
@@ -210,7 +209,7 @@ def init():
         print(f"Header: {args.header}")
         print(f"Config: {config}")
         print(f"Output: {args.output}")
-        print("fskip_unsupported: {args.skip_unsupported}")
+        print(f"skip_unsupported: {args.skip_unsupported}")
         print(f"Emit prober: {args.emit_prober}")
         print(f"No probe: {args.no_probe}")
         print(f"Sizes: {args.sizes}")

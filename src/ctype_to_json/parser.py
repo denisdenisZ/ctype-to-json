@@ -103,7 +103,7 @@ class HeaderParser:
         return cursor.type.kind == clx.TypeKind.POINTER
 
     def process_pointer(self, cursor):
-        return {"pointer": "true", "type": cursor.type.get_pointee().spelling}
+        return {"pointer": True, "type": cursor.type.get_pointee().spelling}
 
     def get_unsupported_reason(self, cursor):
         unsupported_kinds = [
@@ -182,6 +182,8 @@ class HeaderParser:
         }
 
         for child in cursor.get_children():
+            if child.kind != clx.CursorKind.FIELD_DECL:
+                continue
             result = self.process_field(child)
             if result is not None:
                 fields.append(result)

@@ -1,0 +1,5 @@
+[toolchain]
+cc = "gcc"
+
+[parser]
+c_standard = "23"

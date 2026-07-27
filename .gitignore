@@ -1,8 +1,8 @@
-.cache/
+__pycache__/
+*.pyc
+.pytest_cache/
 build/
-out/
-compile_commands.json
-cpm-package-lock.cmake
-update_dependencies.sh
-__pycache__
+dist/
+*.egg-info/
+.venv/
 venv/

@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ctype-to-json"
+version = "0.1.0"
+description = "Parses C header files and produces a JSON description of structs and enums, including field offsets and sizes"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "libclang",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[project.scripts]
+ctype-to-json = "ctype_to_json.cli:init"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
