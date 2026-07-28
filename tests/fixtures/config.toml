@@ -1,7 +1,0 @@
-[toolchain]
-cc = "gcc"
-flags = []
-include_dirs = []
-
-[parser]
-c_standard = "11"

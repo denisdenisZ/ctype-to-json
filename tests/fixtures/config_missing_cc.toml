@@ -1,5 +1,0 @@
-[toolchain]
-flags = []
-
-[parser]
-c_standard = "11"
