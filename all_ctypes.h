@@ -125,14 +125,47 @@ struct alignment {
     _Alignas(16) int var_aligned_int;   // or alignas(16) via stdalign.h macro
 };
 
-struct anonymous {
-    union {
-        int i;
-        float f;
-    };
+struct nested {
+
+    /* named type, named field - normal, nested access */
+    struct struct_named_type_named_field {
+        int var_named_type_named_field_struct;
+    } var_named_type_named_field_struct_holder;
+
+    /* anonymous type, named field - nested access, type unreferenceable elsewhere */
     struct {
-        int x;
+        int var_anon_type_named_field_struct;
+    } var_anon_type_named_field_struct_holder;
+
+    /* anonymous type, unnamed field - fully transparent */
+    struct {
+        int var_anon_type_unnamed_field_struct;
     };
+
+    union union_named_type_named_field {
+        int var_named_type_named_field_union_int;
+        float var_named_type_named_field_union_float;
+    } var_named_type_named_field_union_holder;
+
+    union {
+        int var_anon_type_named_field_union_int;
+        float var_anon_type_named_field_union_float;
+    } var_anon_type_named_field_union_holder;
+
+    union {
+        int var_anon_type_unnamed_field_union_int;
+        float var_anon_type_unnamed_field_union_float;
+    };
+
+    enum enum_named_type_named_field {
+        VAR_NAMED_TYPE_NAMED_FIELD_ENUM_A,
+        VAR_NAMED_TYPE_NAMED_FIELD_ENUM_B
+    } var_named_type_named_field_enum_holder;
+
+    enum {
+        VAR_ANON_TYPE_NAMED_FIELD_ENUM_A,
+        VAR_ANON_TYPE_NAMED_FIELD_ENUM_B
+    } var_anon_type_named_field_enum_holder;
 };
 #endif
 
@@ -183,6 +216,9 @@ struct pointer_variants {
     int (*var_variadic_func_ptr)(int, ...);
 
     struct opaque_handle *var_opaque_pointer;
+
+    struct { int x; } *var_pointer_to_anon_struct;
+    union { int x; } *var_pointer_to_anon_union;
 };
 
 struct flexible_array {
