@@ -125,7 +125,7 @@ struct alignment {
     _Alignas(16) int var_aligned_int;   // or alignas(16) via stdalign.h macro
 };
 
-struct nested {
+struct nested_inlined {
 
     /* named type, named field - normal, nested access */
     struct struct_named_type_named_field {
@@ -207,6 +207,7 @@ struct pointer_variants {
 
     int var_int_array[10];
     int var_int_array_array[10][10];
+    int var_int_array_5D[1][2][3][4][5];
 
     int        *var_pointer_array[10];
     int        (*var_array_pointer)[10];
@@ -218,6 +219,7 @@ struct pointer_variants {
     struct opaque_handle *var_opaque_pointer;
 
     struct { int x; } *var_pointer_to_anon_struct;
+    struct { int x; } **var_pointer_to_pointer_to_anon_struct;
     union { int x; } *var_pointer_to_anon_union;
 };
 
@@ -231,6 +233,7 @@ struct flexible_array {
 };
 
 struct bitfields {
+    unsigned int : 10;
     unsigned int var_bitfield_1  : 1;
     unsigned int var_bitfield_3  : 3;
     unsigned int var_bitfield_12 : 12;

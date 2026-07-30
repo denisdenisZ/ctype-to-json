@@ -39,6 +39,9 @@ def print_all_attributes(cursor):
     print("storage_class: ", cursor.storage_class)
     print("access_spec:   ", cursor.access_specifier)
     print("linkage:       ", cursor.linkage)
+    if cursor.kind == cindex.CursorKind.ENUM_DECL:
+        print("underlying enum type: ",
+              next(cursor.get_children()).type.get_canonical().spelling)
     if cursor.kind == cindex.CursorKind.ENUM_CONSTANT_DECL:
         print("enum value:    ", cursor.enum_value)
     print("is_bitfield:   ", cursor.is_bitfield())

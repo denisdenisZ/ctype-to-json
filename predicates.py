@@ -1,25 +1,35 @@
 import clang.cindex as cindex
-from helpers import get_cursor_type
+from helpers import get_canonical_type
 
-NUMERIC_KINDS = (
+SIGNED_NUMERIC_KINDS = (
     cindex.TypeKind.CHAR_S,
     cindex.TypeKind.SCHAR,
-    cindex.TypeKind.UCHAR,
-
     cindex.TypeKind.SHORT,
-    cindex.TypeKind.USHORT,
-
     cindex.TypeKind.INT,
-    cindex.TypeKind.UINT,
-
     cindex.TypeKind.LONG,
     cindex.TypeKind.LONGLONG,
-    cindex.TypeKind.ULONG,
-    cindex.TypeKind.ULONGLONG,
+)
 
+FLOAT_NUMERIC_KINDS = (
     cindex.TypeKind.FLOAT,
     cindex.TypeKind.DOUBLE,
     cindex.TypeKind.LONGDOUBLE,
+)
+
+UNSIGNED_NUMERIC_KINDS = (
+    cindex.TypeKind.CHAR_U,
+    cindex.TypeKind.UCHAR,
+
+    cindex.TypeKind.USHORT,
+
+    cindex.TypeKind.UINT,
+
+    cindex.TypeKind.ULONG,
+    cindex.TypeKind.ULONGLONG,
+)
+
+NUMERIC_KINDS = (
+    SIGNED_NUMERIC_KINDS + UNSIGNED_NUMERIC_KINDS + FLOAT_NUMERIC_KINDS
 )
 
 ARRAY_KINDS = (
@@ -43,25 +53,30 @@ def _resolve_if_pointer(t):
 
 
 def _is_record_of_kind(cursor, decl_kind):
-    t = get_cursor_type(cursor)
+    t = get_canonical_type(cursor)
     return (
         t.kind == cindex.TypeKind.RECORD
         and t.get_declaration().kind == decl_kind
     )
 
 
+def _has_type_kind(cursor_or_type, *kinds):
+    return get_canonical_type(cursor_or_type).kind in kinds
+
+
 def _has_kind(cursor, *kinds):
-    return get_cursor_type(cursor).kind in kinds
+    return cursor.kind in kinds
 
 
 def _pointee_has_kind(cursor, *kinds):
-    t = _resolve_if_pointer(get_cursor_type(cursor))
+    t = _resolve_if_pointer(get_canonical_type(cursor))
     return t.kind in kinds
 # ===========================================================================
 
 
 def is_pointer(cursor):
-    return _has_kind(cursor, cindex.TypeKind.POINTER)
+    is_ptr_type = _has_type_kind(cursor, cindex.TypeKind.POINTER)
+    return is_ptr_type and not is_func_ptr(cursor)
 
 
 def is_func_ptr(cursor):
@@ -71,7 +86,15 @@ def is_func_ptr(cursor):
 
 
 def is_array(cursor):
-    return _has_kind(cursor, *ARRAY_KINDS)
+    return _has_type_kind(cursor, *ARRAY_KINDS)
+
+
+def is_incomplete_array(cursor):
+    return _has_type_kind(cursor, cindex.TypeKind.INCOMPLETEARRAY)
+
+
+def is_vla_array(cursor):
+    return _has_type_kind(cursor, cindex.TypeKind.VARIABLEARRAY)
 
 
 def is_struct(cursor):
@@ -83,19 +106,19 @@ def is_union(cursor):
 
 
 def is_bool(cursor):
-    return _has_kind(cursor, cindex.TypeKind.BOOL)
+    return _has_type_kind(cursor, cindex.TypeKind.BOOL)
 
 
 def is_numeric(cursor):
-    return _has_kind(cursor, *NUMERIC_KINDS)
+    return _has_type_kind(cursor, *NUMERIC_KINDS)
 
 
 def is_complex(cursor):
-    return _has_kind(cursor, cindex.TypeKind.COMPLEX)
+    return _has_type_kind(cursor, cindex.TypeKind.COMPLEX)
 
 
 def is_enum(cursor):
-    return _has_kind(cursor, cindex.TypeKind.ENUM)
+    return _has_type_kind(cursor, cindex.TypeKind.ENUM)
 
 
 def is_bitfield(cursor):
@@ -114,3 +137,16 @@ def is_top_level_record_or_enum_def(cursor):
     if cursor.semantic_parent.kind != cindex.CursorKind.TRANSLATION_UNIT:
         return False
     return True
+
+
+def is_numeric_signed(cursor):
+    kind = get_canonical_type(cursor).kind
+    if kind in SIGNED_NUMERIC_KINDS:
+        return True
+    if kind in UNSIGNED_NUMERIC_KINDS:
+        return False
+    return None
+
+
+def is_numeric_float(cursor):
+    return get_canonical_type(cursor).kind in FLOAT_NUMERIC_KINDS

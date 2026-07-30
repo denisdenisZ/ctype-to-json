@@ -1,34 +1,15 @@
 #!/usr/bin/env python3
 
 import sys
+import json
 
 from predicates import (
-    get_cursor_type,
-    is_bool,
-    is_complex,
-    is_enum,
-    is_numeric,
-    is_struct,
-    is_union,
-    is_array,
-    is_pointer,
-    is_bitfield,
     is_top_level_record_or_enum_def,
 )
+
 from handlers import (
-    handle_bitfield,
-    handle_pointer,
-    handle_func_ptr,
-    handle_struct,
-    handle_union,
-    handle_enum,
-    handle_bool,
-    handle_array,
-    handle_complex,
-    handle_numeric,
-    handle_top_level_struct,
-    handle_top_level_enum,
-    handle_top_level_union,
+    dispatch_top_level,
+    dispatch_field,
 )
 from prints import print_all_attributes
 from libclang_init import parse_header
@@ -47,71 +28,66 @@ Field types:
 7. bool
 '''
 
-FIELD_DISPATCH = [
-    (is_bitfield, handle_bitfield),
-    (is_pointer,  handle_pointer),
-    (is_array,    handle_array),
-    (is_bool,     handle_bool),
-    (is_enum,     handle_enum),
-    (is_struct,   handle_struct),
-    (is_union,    handle_union),
-    (is_complex,  handle_complex),
-    (is_numeric,  handle_numeric),
-]
 
-TOP_LEVEL_DISPATCH = [
-    (is_struct, handle_top_level_struct),
-    (is_enum, handle_top_level_enum),
-    (is_union, handle_top_level_union),
-]
+def should_add_type(name, node, types):
+    category = types.get(node["kind"])
+    if category is None:
+        return False
+    return name not in category
 
 
 def walk(tu):
+    out = {
+        "target": {},
+        "struct": {},
+        "union": {},
+        "enum": {},
+        "numeric": {},
+        "complex": {},
+        "bool": {},
+
+        "pointer": {},
+        "func_pointer": {},
+        "array": {},
+    }
     for child in tu.cursor.get_children():
-        fields = []
+
+        if not is_top_level_record_or_enum_def(child):
+            continue
+
+        parent = dispatch_top_level(child)
+        name, parent = list(parent.items())[0]
+        out[parent["kind"]][name] = parent
+
+        for field in child.get_children():
+            # FIXME: Handle error
+            nodes = dispatch_field(field)
+            if not nodes:
+                continue
+
+            for field_name, field_node in nodes.items():
+                if should_add_type(name, field_node, out):
+                    out[field_node["kind"]][field_name] = field_node
+
+    return out
+
+
+def walk_print(tu):
+    for child in tu.cursor.get_children():
 
         if not is_top_level_record_or_enum_def(child):
             continue
 
         print_all_attributes(child)
 
-        parent = dispatch_top_level(child)
-
         for field in child.get_children():
-            # FIXME: Handle error
-            node = dispatch_field(field)
-
-            fields.append(node)
             print_all_attributes(field)
-
-
-def dispatch(cursor, dispatch_list):
-    for predicate, handler in dispatch_list:
-        if predicate(cursor):
-            return handler(cursor)
-    # FIXME: Return better error
-    return False
-
-
-def dispatch_top_level(cursor):
-    out = dispatch(cursor, TOP_LEVEL_DISPATCH)
-    # FIXME: Return better error
-    return out if out else False
-
-
-def dispatch_field(field):
-    out = dispatch(field, FIELD_DISPATCH)
-    # FIXME: Return better error
-    return out if out else False
-
-
-def handle_node(node):
-    pass
 
 
 def main():
     header_path = sys.argv[1]
     cstd = sys.argv[2]
+    output_type = sys.argv[3]
 
     tu = parse_header(
         header_path,
@@ -122,7 +98,10 @@ def main():
     for diag in tu.diagnostics:
         print(diag)
 
-    walk(tu)
+    if output_type == "json":
+        print(json.dumps(walk(tu), indent=2))
+    elif output_type == "txt":
+        walk_print(tu)
 
 
 main()
